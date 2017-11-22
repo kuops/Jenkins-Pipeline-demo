@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/base.xml" />
+
+    <springProfile name="production">
+        <!-- 滚动记录文件，先将日志记录到指定文件，当符合某个条件时，将日志记录到其他文件 -->
+        <appender name="StackRollingFileAppender" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <File>/tmp/stackbox-demo.log</File>
+            <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+                <FileNamePattern>/tmp/stackbox-demo.%d{yyyy-MM-dd}.%i.log</FileNamePattern>
+                <!-- 单个log文件大小 -->
+                <maxFileSize>1MB</maxFileSize>
+                <!-- 最多保存60份日志文件 -->
+                <maxHistory>60</maxHistory>
+                <!-- 日志文件总大小不超过20G -->
+                <totalSizeCap>20GB</totalSizeCap>
+            </rollingPolicy>
+            <encoder>
+                <Pattern>%d{YYYY-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{35} - %msg %n</Pattern>
+            </encoder>
+        </appender>
+    </springProfile>
+
+    <springProfile name="development">
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE" />
+        </root>
+    </springProfile>
+
+    <springProfile name="production">
+        <!-- 日志等级调成 debug 级别，以便看 rollingPolicy 中的设置是否生效 -->
+        <root level="INFO">
+            <appender-ref ref="CONSOLE" />
+            <appender-ref ref="StackRollingFileAppender" />
+        </root>
+    </springProfile>
+
+    <logger name="hello" level="INFO"/>
+
+</configuration>

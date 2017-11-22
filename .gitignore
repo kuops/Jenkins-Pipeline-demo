@@ -1,0 +1,4 @@
+.idea
+gs-consuming-rest.iml
+*.log
+target/*
