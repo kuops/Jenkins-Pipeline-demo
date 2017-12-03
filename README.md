@@ -13,5 +13,5 @@ pipeline 截图：
 
 访问地址为
 ```
-http://DEPLOY_HOST/greeting
+http://DEPLOY_HOST的IP:9090/greeting
 ```
