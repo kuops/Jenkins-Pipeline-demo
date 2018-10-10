@@ -1,0 +1,29 @@
+{
+  "name": "multibranch-example",
+  "version": "0.1.0",
+  "description": "A sample Jenkins build example",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.13.3"
+  },
+  "engines": {
+    "node": "4.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kuops/Jenkins-Pipeline-demo.git"
+  },
+  "keywords": [
+    "node",
+    "heroku",
+    "express"
+  ],
+  "author": "kuops",
+  "contributors": [
+    "kuops <opshsy@gmail.com> (https://kuops.com)"
+  ],
+  "license": "MIT"
+}
