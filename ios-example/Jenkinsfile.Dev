@@ -1,0 +1,119 @@
+pipeline {
+
+    agent any
+
+    environment {
+        SCHEME = "demo"
+        SIGNING_TYPE = "Release"
+        DESTINATION = "ad-hoc"
+        KEYCHAIN_PASS = credentials('xxxx-xxxx-xxxx-xxxx-xxxx') 
+        PARENT_PATH  = "/Users/devops/Desktop/iOS-demo"
+        BUILD_DIR = "build/dev"
+        ADHOC_PROVISION="demoAdhoc.mobileprovision"
+        APPSTORE_PROVISION="demoAppstore.mobileprovision"
+    }
+
+    options {
+        timestamps()
+        ansiColor('xterm')
+        buildDiscarder logRotator(artifactDaysToKeepStr: '7', artifactNumToKeepStr: '30', daysToKeepStr: '7', numToKeepStr: '30')
+        disableConcurrentBuilds()
+    }
+
+    parameters {
+        gitParameter branchFilter: 'origin/(.*)', defaultValue: 'master', name: 'BRANCH', type: 'PT_BRANCH'
+    }    
+
+    stages {
+
+        stage('checkout') {
+            steps {
+                script {
+                    if (params.BRANCH == '!No Git repository configured in SCM configuration') {
+                        git 'https://xxx.demo.git'
+                        currentBuild.result = 'ABORTED'
+                    } else if (params.BRANCH == 'master' ) {
+                        currentBuild.result = 'ABORTED'
+                        error('因为现在的分支是 master，所以什么都没有发生')
+                    }
+                    else {
+                        checkout([$class: 'GitSCM', branches: [[name: "*/${params.BRANCH}"]], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'CheckoutOption', timeout: 60]], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'xxxx-xxxx-xxxx-xxxx', url: 'git@github.com:demo/iOS-demo.git']]])
+                    }
+                }
+            }    
+        }
+        
+        stage('commit message') {
+            steps {
+                script {
+                   env.git_message = sh (script: "git log -n1 --date=format:'%Y-%m-%d %H:%M:%S' --pretty=format:'comitid: %h <br />subject: %s %b <br />date: %cd <br />author:<%an><br />' --abbrev-commit",returnStdout: true)
+                }
+            }
+        }
+
+        stage('get provision uuid') {
+            steps {
+                sh"""
+                    mkdir -p ${WORKSPACE}/build
+                    #解密 mobileprovision 文件
+                    security cms -D -i ${PARENT_PATH}/Files/${ADHOC_PROVISION} > ${WORKSPACE}/build/ad-hoc_provisionfile
+                """
+                script {
+                    //获取 mobileprovision 文件的 uuid
+                    Current_uuid = sh (script: '/usr/libexec/PlistBuddy -c Print:UUID ${WORKSPACE}/build/ad-hoc_provisionfile',returnStdout: true)
+                }
+            }
+        }
+
+        stage('xbuild clean') {
+            steps {
+                sh """
+                    xcodebuild clean -workspace 会找房.xcworkspace -scheme "${SCHEME}"
+                    rm -rf ${WORKSPACE}/${BUILD_DIR}
+                """
+            }
+        }
+
+        stage('xbuild archive') {
+             steps {
+                sh  """
+                    security unlock-keychain -p ${KEYCHAIN_PASS}  ~/Library/Keychains/login.keychain-db
+                    # PROVISIONING_PROFILE_SPECIFIER 根据 uuid 选择 provision profile
+                    xcodebuild archive -workspace 会找房.xcworkspace -scheme ${SCHEME} -configuration ${SIGNING_TYPE} -archivePath ${BUILD_DIR}/${SCHEME}.xcarchive PROVISIONING_PROFILE_SPECIFIER=${Current_uuid}
+                """
+            }
+        }
+
+        stage('export ipa') {
+            steps {
+                sh """
+                    xcodebuild -exportArchive -archivePath ${BUILD_DIR}/${SCHEME}.xcarchive -exportPath ${BUILD_DIR} -exportOptionsPlist ${PARENT_PATH}/Files/ExportPlist/${DESTINATION}.plist
+                """
+            }
+        }
+        
+        stage('upload to pgy') {
+            steps {
+                script {
+                      env.Pgy_url="https://www.pgyer.com/url"
+                      env.Pgy_return = sh (script: 'curl -sL -F "file=@${BUILD_DIR}/${SCHEME}.ipa" -F "_api_key=1234567" -F "buildUpdateDescription=${BRANCH} ${BUILD_NUMBER}" https://www.pgyer.com/apiv2/app/upload',returnStdout: true,encoding: 'UTF-8')
+                      env.Pgy_num = sh (script: 'echo ${Pgy_return}|grep -Eo \'buildBuildVersion[^,]+\'|awk -F: \'{print $2}\'',returnStdout: true,encoding: 'UTF-8')
+                }
+            }
+        }
+    
+    }
+
+
+    post {
+        always { 
+            sh 'rm -rf ${WORKSPACE}/* '
+        }
+        success {
+          emailext body: '${SCRIPT, template="mygroovy-html.template"}', mimeType: 'text/html', subject: '来自 Jenkins ${JOB_NAME} 的构建结果: success', to: 'ops,qa'
+        }
+        failure {
+          emailext body: '${SCRIPT, template="mygroovy-html.template"}', mimeType: 'text/html', subject: '来自 Jenkins ${JOB_NAME} 的构建结果: failure', to: 'ops,qa'
+        }
+    }
+}
