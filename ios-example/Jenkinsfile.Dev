@@ -68,7 +68,7 @@ pipeline {
         stage('xbuild clean') {
             steps {
                 sh """
-                    xcodebuild clean -workspace 会找房.xcworkspace -scheme "${SCHEME}"
+                    xcodebuild clean -workspace demo.xcworkspace -scheme "${SCHEME}"
                     rm -rf ${WORKSPACE}/${BUILD_DIR}
                 """
             }
@@ -79,7 +79,7 @@ pipeline {
                 sh  """
                     security unlock-keychain -p ${KEYCHAIN_PASS}  ~/Library/Keychains/login.keychain-db
                     # PROVISIONING_PROFILE_SPECIFIER 根据 uuid 选择 provision profile
-                    xcodebuild archive -workspace 会找房.xcworkspace -scheme ${SCHEME} -configuration ${SIGNING_TYPE} -archivePath ${BUILD_DIR}/${SCHEME}.xcarchive PROVISIONING_PROFILE_SPECIFIER=${Current_uuid}
+                    xcodebuild archive -workspace demo.xcworkspace -scheme ${SCHEME} -configuration ${SIGNING_TYPE} -archivePath ${BUILD_DIR}/${SCHEME}.xcarchive PROVISIONING_PROFILE_SPECIFIER=${Current_uuid}
                 """
             }
         }
